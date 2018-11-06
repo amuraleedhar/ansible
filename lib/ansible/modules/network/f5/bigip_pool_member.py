@@ -11,7 +11,7 @@ __metaclass__ = type
 
 ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
-                    'supported_by': 'community'}
+                    'supported_by': 'certified'}
 
 DOCUMENTATION = r'''
 ---
@@ -596,7 +596,7 @@ class ModuleManager(object):
 
     def exists(self):
         if not self.pool_exist():
-            F5ModuleError('The specified pool does not exist')
+            raise F5ModuleError('The specified pool does not exist')
 
         uri = "https://{0}:{1}/mgmt/tm/ltm/pool/{2}/members/{3}".format(
             self.client.provider['server'],

@@ -194,12 +194,6 @@ To install the newest version, you may need to unmask the ansible package prior 
 
     $ echo 'app-admin/ansible' >> /etc/portage/package.accept_keywords
 
-.. note::
-
-    The current default Python slot on Gentoo is version 3.4.  Ansible needs Python-3.5 or higher so
-    you will need to `:ref:`bootstrap <managed_node_requirements>` a compatible version onto the
-    machines.
-
 Latest Releases via pkg (FreeBSD)
 +++++++++++++++++++++++++++++++++
 
@@ -381,10 +375,6 @@ other than /etc/ansible/hosts:
 
     $ echo "127.0.0.1" > ~/ansible_hosts
     $ export ANSIBLE_INVENTORY=~/ansible_hosts
-
-.. note::
-
-    ANSIBLE_INVENTORY is available starting at 1.9 and substitutes the deprecated ANSIBLE_HOSTS
 
 You can read more about the inventory file in later parts of the manual.
 

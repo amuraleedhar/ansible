@@ -22,7 +22,7 @@ __metaclass__ = type
 import os
 import sys
 
-from collections import defaultdict, MutableMapping, Sequence
+from collections import defaultdict
 
 try:
     from hashlib import sha1
@@ -36,6 +36,7 @@ from ansible.errors import AnsibleError, AnsibleParserError, AnsibleUndefinedVar
 from ansible.inventory.host import Host
 from ansible.inventory.helpers import sort_groups, get_group_vars
 from ansible.module_utils._text import to_native
+from ansible.module_utils.common._collections_compat import MutableMapping, Sequence
 from ansible.module_utils.six import iteritems, text_type, string_types
 from ansible.plugins.loader import lookup_loader, vars_loader
 from ansible.plugins.cache import FactCache
@@ -429,7 +430,7 @@ class VariableManager:
         # if we have a task and we're delegating to another host, figure out the
         # variables for that host now so we don't have to rely on hostvars later
         if task and task.delegate_to is not None and include_delegate_to:
-            all_vars['ansible_delegated_vars'] = self._get_delegated_vars(play, task, all_vars)
+            all_vars['ansible_delegated_vars'], all_vars['_ansible_loop_cache'] = self._get_delegated_vars(play, task, all_vars)
 
         # 'vars' magic var
         if task or play:
@@ -488,7 +489,7 @@ class VariableManager:
     def _get_delegated_vars(self, play, task, existing_variables):
         if not hasattr(task, 'loop'):
             # This "task" is not a Task, so we need to skip it
-            return {}
+            return {}, None
 
         # we unfortunately need to template the delegate_to field here,
         # as we're fetching vars before post_validate has been called on
@@ -593,16 +594,15 @@ class VariableManager:
                 include_hostvars=False,
             )
 
+        _ansible_loop_cache = None
         if has_loop and cache_items:
-            # delegate_to templating produced a change, update task.loop with templated items,
+            # delegate_to templating produced a change, so we will cache the templated items
+            # in a special private hostvar
             # this ensures that delegate_to+loop doesn't produce different results than TaskExecutor
             # which may reprocess the loop
-            # Set loop_with to None, so we don't do extra unexpected processing on the cached items later
-            # in TaskExecutor
-            task.loop_with = None
-            task.loop = items
+            _ansible_loop_cache = items
 
-        return delegated_host_vars
+        return delegated_host_vars, _ansible_loop_cache
 
     def clear_facts(self, hostname):
         '''

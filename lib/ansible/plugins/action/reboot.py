@@ -28,7 +28,7 @@ class TimedOutException(Exception):
 
 class ActionModule(ActionBase):
     TRANSFERS_FILES = False
-    _VALID_ARGS = frozenset(('connect_timeout', 'msg', 'post_reboot_delay', 'pre_reboot_delay', 'test_command'))
+    _VALID_ARGS = frozenset(('connect_timeout', 'msg', 'post_reboot_delay', 'pre_reboot_delay', 'test_command', 'reboot_timeout'))
 
     DEFAULT_REBOOT_TIMEOUT = 600
     DEFAULT_CONNECT_TIMEOUT = None
@@ -204,7 +204,7 @@ class ActionModule(ActionBase):
                 fail_count += 1
                 time.sleep(fail_sleep)
 
-        raise TimedOutException('Timed out waiting for %s' % (action_desc))
+        raise TimedOutException('Timed out waiting for %s (timeout=%s)' % (action_desc, reboot_timeout))
 
     def perform_reboot(self):
         display.debug("%s: rebooting server" % self._task.action)
