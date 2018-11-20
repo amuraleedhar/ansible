@@ -119,7 +119,7 @@ To enable the Ansible Engine repository, run the following command:
 
 .. code-block:: bash
 
-    $ sudo subscription-manager repos --enable rhel-7-server-ansible-2.6-rpms
+    $ sudo subscription-manager repos --enable rhel-7-server-ansible-2.7-rpms
 
 RPMs for currently supported versions of RHEL, CentOS, and Fedora are available from `EPEL <https://fedoraproject.org/wiki/EPEL>`_ as well as `releases.ansible.com <https://releases.ansible.com/ansible/rpm>`_.
 
@@ -259,6 +259,22 @@ The AUR has a PKGBUILD for pulling directly from Github called `ansible-git <htt
 
 Also see the `Ansible <https://wiki.archlinux.org/index.php/Ansible>`_ page on the ArchWiki.
 
+.. _from_sbopkg:
+
+Latest Releases via sbopkg (Slackware Linux)
+++++++++++++++++++++++++++++++++++++++++++++
+
+Ansible build script is available in the `SlackBuilds.org <https://slackbuilds.org/apps/ansible/>`_ repository.
+Can be built and installed using `sbopkg <https://sbopkg.org/>`_.
+
+Create queue with Ansible and all dependencies::
+
+    # sqg -p ansible
+
+Build and install packages from created queuefile (answer Q for question if sbopkg should use queue or package)::
+
+    # sbopkg -k -i ansible
+
 .. _from_pip:
 
 Latest Releases via Pip
@@ -323,7 +339,7 @@ To install from source, clone the Ansible git repository:
 
 .. code-block:: bash
 
-    $ git clone https://github.com/ansible/ansible.git --recursive
+    $ git clone https://github.com/ansible/ansible.git
     $ cd ./ansible
 
 Once git has cloned the Ansible repository, setup the Ansible environment:

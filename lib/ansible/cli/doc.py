@@ -78,7 +78,8 @@ class DocCLI(CLI):
         self.parser.add_option("-j", "--json", action="store_true", default=False, dest='json_dump',
                                help='**For internal testing only** Dump json metadata for all plugins.')
         self.parser.add_option("-t", "--type", action="store", default='module', dest='type', type='choice',
-                               help='Choose which plugin type (defaults to "module")',
+                               help='Choose which plugin type (defaults to "module"). '
+                                    'Available plugin types are : {0}'.format(C.DOCUMENTABLE_PLUGINS),
                                choices=C.DOCUMENTABLE_PLUGINS)
         super(DocCLI, self).parse()
 
@@ -273,7 +274,7 @@ class DocCLI(CLI):
         except Exception as e:
             display.vvv(traceback.format_exc())
             raise AnsibleError(
-                "%s %s missing documentation (or could not parse documentation): %s\n" % (plugin_type, plugin, str(e)))
+                "%s %s missing documentation (or could not parse documentation): %s\n" % (plugin_type, plugin, to_native(e)))
 
     def find_plugins(self, path, ptype):
 

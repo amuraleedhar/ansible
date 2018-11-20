@@ -29,9 +29,6 @@ options:
     - The name of the label.
     required: yes
     aliases: [ label_name, name ]
-  display_name:
-    description:
-    - The name of the label displayed in the web UI.
   type:
     description:
     - The type of the label.
@@ -99,7 +96,6 @@ def main():
     argument_spec.update(
         label=dict(type='str', required=False, aliases=['name', 'label_name']),
         label_id=dict(type='str', required=False),
-        display_name=dict(type='str'),
         type=dict(type='str', default='site', choices=['site']),
         state=dict(type='str', default='present', choices=['absent', 'present', 'query']),
     )
@@ -116,7 +112,6 @@ def main():
     label = module.params['label']
     label_id = module.params['label_id']
     label_type = module.params['type']
-    display_name = module.params['display_name']
     state = module.params['state']
 
     msc = MSCModule(module)
@@ -136,7 +131,7 @@ def main():
         msc.existing = msc.get_obj(path, id=label_id)
         existing_by_name = msc.get_obj(path, displayName=label)
         if existing_by_name and label_id != existing_by_name['id']:
-            msc.fail_json(msg="Provided label '{1}' with id '{2}' does not match existing id '{3}'.".format(label, label_id, existing_by_name['id']))
+            msc.fail_json(msg="Provided label '{0}' with id '{1}' does not match existing id '{2}'.".format(label, label_id, existing_by_name['id']))
 
     # If we found an existing object, continue with it
     if label_id:
@@ -158,7 +153,7 @@ def main():
 
         msc.sanitize(dict(
             id=label_id,
-            displayName=display_name,
+            displayName=label,
             type=label_type,
         ), collate=True)
 
