@@ -144,14 +144,11 @@ from ansible.errors import AnsibleError, AnsibleConnectionFailure, AnsibleFileNo
 from ansible.module_utils.six import iteritems
 from ansible.module_utils.six.moves import input
 from ansible.plugins.connection import ConnectionBase
+from ansible.utils.display import Display
 from ansible.utils.path import makedirs_safe
 from ansible.module_utils._text import to_bytes, to_native, to_text
 
-try:
-    from __main__ import display
-except ImportError:
-    from ansible.utils.display import Display
-    display = Display()
+display = Display()
 
 
 AUTHENTICITY_MSG = """
@@ -531,6 +528,10 @@ class Connection(ConnectionBase):
 
         f.close()
 
+    def reset(self):
+        self.close()
+        self._connect()
+
     def close(self):
         ''' terminate the connection '''
 
@@ -588,7 +589,7 @@ class Connection(ConnectionBase):
 
                 os.rename(tmp_keyfile.name, self.keyfile)
 
-            except:
+            except Exception:
 
                 # unable to save keys, including scenario when key was invalid
                 # and caught earlier
@@ -596,3 +597,4 @@ class Connection(ConnectionBase):
             fcntl.lockf(KEY_LOCK, fcntl.LOCK_UN)
 
         self.ssh.close()
+        self._connected = False
