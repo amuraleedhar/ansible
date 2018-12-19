@@ -74,9 +74,9 @@ class DistributionFiles:
         {'path': '/etc/lsb-release', 'name': 'Debian'},
         {'path': '/etc/lsb-release', 'name': 'Mandriva'},
         {'path': '/etc/sourcemage-release', 'name': 'SMGL'},
+        {'path': '/usr/lib/os-release', 'name': 'ClearLinux'},
         {'path': '/etc/os-release', 'name': 'NA'},
         {'path': '/etc/coreos/update.conf', 'name': 'Coreos'},
-        {'path': '/usr/lib/os-release', 'name': 'ClearLinux'},
     )
 
     SEARCH_STRING = {
@@ -390,6 +390,9 @@ class DistributionFiles:
         release = re.search('ID=(.*)', data)
         if release:
             clear_facts['distribution_release'] = release.groups()[0]
+        pname = re.search('NAME="(.*)"', data)
+        if pname:
+            clear_facts['distribution'] = pname.groups()[0]
         return True, clear_facts
 
 
@@ -422,9 +425,9 @@ class Distribution(object):
         {'path': '/etc/lsb-release', 'name': 'Mandriva'},
         {'path': '/etc/altlinux-release', 'name': 'Altlinux'},
         {'path': '/etc/sourcemage-release', 'name': 'SMGL'},
+        {'path': '/usr/lib/os-release', 'name': 'ClearLinux'},
         {'path': '/etc/os-release', 'name': 'NA'},
         {'path': '/etc/coreos/update.conf', 'name': 'Coreos'},
-        {'path': '/usr/lib/os-release', 'name': 'ClearLinux'},
     )
 
     SEARCH_STRING = {
@@ -454,7 +457,8 @@ class Distribution(object):
                      'AIX': ['AIX'],
                      'HP-UX': ['HPUX'],
                      'Darwin': ['MacOSX'],
-                     'FreeBSD': ['FreeBSD', 'TrueOS']}
+                     'FreeBSD': ['FreeBSD', 'TrueOS'],
+                     'ClearLinux': ['Clear Linux OS', 'Clear Linux Mix']}
 
     OS_FAMILY = {}
     for family, names in OS_FAMILY_MAP.items():

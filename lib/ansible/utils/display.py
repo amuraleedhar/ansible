@@ -205,7 +205,7 @@ class Display(with_metaclass(Singleton, object)):
             if host is None:
                 self.display(msg, color=C.COLOR_VERBOSE)
             else:
-                self.display("<%s> %s" % (host, msg), color=C.COLOR_VERBOSE, screen_only=True)
+                self.display("<%s> %s" % (host, msg), color=C.COLOR_VERBOSE)
 
     def deprecated(self, msg, version=None, removed=False):
         ''' used to print out a deprecation message.'''
@@ -248,7 +248,7 @@ class Display(with_metaclass(Singleton, object)):
 
     def banner(self, msg, color=None, cows=True):
         '''
-        Prints a header-looking line with cowsay or stars wit hlength depending on terminal width (3 minimum)
+        Prints a header-looking line with cowsay or stars with length depending on terminal width (3 minimum)
         '''
         if self.b_cowsay and cows:
             try:

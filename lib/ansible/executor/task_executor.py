@@ -5,6 +5,7 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 import os
+import re
 import pty
 import time
 import json
@@ -286,6 +287,7 @@ class TaskExecutor:
         index_var = None
         label = None
         loop_pause = 0
+        extended = False
         templar = Templar(loader=self._loader, shared_loader_obj=self._shared_loader_obj, variables=self._job_vars)
 
         # FIXME: move this to the object itself to allow post_validate to take care of templating (loop_control.post_validate)
@@ -293,6 +295,7 @@ class TaskExecutor:
             loop_var = templar.template(self._task.loop_control.loop_var)
             index_var = templar.template(self._task.loop_control.index_var)
             loop_pause = templar.template(self._task.loop_control.pause)
+            extended = templar.template(self._task.loop_control.extended)
 
             # This may be 'None',so it is tempalted below after we ensure a value and an item is assigned
             label = self._task.loop_control.label
@@ -312,10 +315,29 @@ class TaskExecutor:
             items = self._squash_items(items, loop_var, task_vars)
 
         no_log = False
+        items_len = len(items)
         for item_index, item in enumerate(items):
             task_vars[loop_var] = item
             if index_var:
                 task_vars[index_var] = item_index
+
+            if extended:
+                task_vars['ansible_loop'] = {
+                    'allitems': items,
+                    'index': item_index + 1,
+                    'index0': item_index,
+                    'first': item_index == 0,
+                    'last': item_index + 1 == items_len,
+                    'length': items_len,
+                    'revindex': items_len - item_index,
+                    'revindex0': items_len - item_index - 1,
+                }
+                try:
+                    task_vars['ansible_loop']['nextitem'] = items[item_index + 1]
+                except IndexError:
+                    pass
+                if item_index - 1 >= 0:
+                    task_vars['ansible_loop']['previtem'] = items[item_index - 1]
 
             # Update template vars to reflect current loop iteration
             templar.set_available_variables(task_vars)
@@ -354,6 +376,9 @@ class TaskExecutor:
             res[loop_var] = item
             if index_var:
                 res[index_var] = item_index
+            if extended:
+                res['ansible_loop'] = task_vars['ansible_loop']
+
             res['_ansible_item_result'] = True
             res['_ansible_ignore_errors'] = task_fields.get('ignore_errors')
 
@@ -425,10 +450,18 @@ class TaskExecutor:
                         # name/pkg or the name/pkg field doesn't have any variables
                         # and thus the items can't be squashed
                         if template_no_item != template_with_item:
+                            if self._task.loop_with and self._task.loop_with not in ('items', 'list'):
+                                value_text = "\"{{ query('%s', %r) }}\"" % (self._task.loop_with, self._task.loop)
+                            else:
+                                value_text = '%r' % self._task.loop
+                            # Without knowing the data structure well, it's easiest to strip python2 unicode
+                            # literals after stringifying
+                            value_text = re.sub(r"\bu'", "'", value_text)
+
                             display.deprecated(
                                 'Invoking "%s" only once while using a loop via squash_actions is deprecated. '
-                                'Instead of using a loop to supply multiple items and specifying `%s: %s`, '
-                                'please use `%s: %r` and remove the loop' % (self._task.action, found, name, found, self._task.loop),
+                                'Instead of using a loop to supply multiple items and specifying `%s: "%s"`, '
+                                'please use `%s: %s` and remove the loop' % (self._task.action, found, name, found, value_text),
                                 version='2.11'
                             )
                             for item in items:
@@ -867,9 +900,9 @@ class TaskExecutor:
         final_vars = combine_vars(variables, variables.get('ansible_delegated_vars', dict()).get(self._task.delegate_to, dict()))
 
         option_vars = C.config.get_plugin_vars('connection', connection._load_name)
-        for plugin in connection._sub_plugins:
-            if plugin['type'] != 'external':
-                option_vars.extend(C.config.get_plugin_vars(plugin['type'], plugin['name']))
+        plugin = connection._sub_plugin
+        if plugin['type'] != 'external':
+            option_vars.extend(C.config.get_plugin_vars(plugin['type'], plugin['name']))
 
         options = {}
         for k in option_vars:

@@ -52,6 +52,19 @@ Deprecated
         vars:
           ansible_aync_dir: /tmp/.ansible_async
 
+* Plugin writers who need a ``FactCache`` object should be aware of two deprecations:
+
+  1. The ``FactCache`` class has moved from ``ansible.plugins.cache.FactCache`` to
+     ``ansible.vars.fact_cache.FactCache``.  This is because the ``FactCache`` is not part of the
+     cache plugin API and cache plugin authors should not be subclassing it.  ``FactCache`` is still
+     available from its old location but will issue a deprecation warning when used from there.  The
+     old location will be removed in Ansible 2.12.
+
+  2. The ``FactCache.update()`` method has been converted to follow the dict API.  It now takes a
+     dictionary as its sole argument and updates itself with the dictionary's items.  The previous
+     API where ``update()`` took a key and a value will now issue a deprecation warning and will be
+     removed in 2.12.  If you need the old behaviour switch to ``FactCache.first_order_merge()``
+     instead.
 
 Modules
 =======
@@ -83,6 +96,7 @@ The following modules will be removed in Ansible 2.12. Please update your playbo
 
 * ``foreman`` use <https://github.com/theforeman/foreman-ansible-modules> instead.
 * ``katello`` use <https://github.com/theforeman/foreman-ansible-modules> instead.
+* ``github_hooks`` use :ref:`github_webhook <github_webhook_module>` and :ref:`github_webhook_facts <github_webhook_facts_module>` instead.
 
 
 Noteworthy module changes
@@ -124,6 +138,8 @@ Plugins
 * The ``powershell`` shell plugin now uses ``async_dir`` to define the async path for the results file and the default
   has changed to ``%USERPROFILE%\.ansible_async``. To control this path now, either set the ``ansible_async_dir``
   variable or the ``async_dir`` value in the ``powershell`` section of the config ini.
+
+* Order of enabled inventory plugins (:ref:`INVENTORY_ENABLED`) has been updated, :ref:`auto <auto_inventory>` is now before :ref:`yaml <yaml_inventory>` and :ref:`ini <ini_inventory>`.
 
 Porting custom scripts
 ======================

@@ -199,7 +199,7 @@ class CLI(with_metaclass(ABCMeta, object)):
         for password_file in vault_password_files:
             id_slug = u'%s@%s' % (C.DEFAULT_VAULT_IDENTITY, password_file)
 
-            # note this makes --vault-id higher precendence than --vault-password-file
+            # note this makes --vault-id higher precedence than --vault-password-file
             # if we want to intertwingle them in order probably need a cli callback to populate vault_ids
             # used by --vault-id and --vault-password-file
             vault_ids.append(id_slug)
@@ -236,7 +236,7 @@ class CLI(with_metaclass(ABCMeta, object)):
 
         if create_new_password:
             prompt_formats['prompt'] = ['New vault password (%(vault_id)s): ',
-                                        'Confirm vew vault password (%(vault_id)s): ']
+                                        'Confirm new vault password (%(vault_id)s): ']
             # 2.3 format prompts for --ask-vault-pass
             prompt_formats['prompt_ask_vault_pass'] = ['New Vault password: ',
                                                        'Confirm New Vault password: ']
@@ -267,7 +267,7 @@ class CLI(with_metaclass(ABCMeta, object)):
                                                           vault_id=built_vault_id)
 
                 # a empty or invalid password from the prompt will warn and continue to the next
-                # without erroring globablly
+                # without erroring globally
                 try:
                     prompted_vault_secret.load()
                 except AnsibleError as exc:
@@ -417,6 +417,10 @@ class CLI(with_metaclass(ABCMeta, object)):
 
         # base opts
         parser = SortedOptParser(usage, version=CLI.version("%prog"), description=desc, epilog=epilog)
+        parser.remove_option('--version')
+        version_help = "show program's version number, config file location, configured module search path," \
+                       " module location, executable location and exit"
+        parser.add_option('--version', action="version", help=version_help)
         parser.add_option('-v', '--verbose', dest='verbosity', default=C.DEFAULT_VERBOSITY, action="count",
                           help="verbose mode (-vvv for more, -vvvv to enable connection debugging)")
 

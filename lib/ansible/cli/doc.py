@@ -1,17 +1,5 @@
-# (c) 2014, James Tanner <tanner.jc@gmail.com>
-#
-# Ansible is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Ansible is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+# Copyright: (c) 2014, James Tanner <tanner.jc@gmail.com>
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
@@ -127,18 +115,18 @@ class DocCLI(CLI):
 
         # process all plugins of type
         if self.options.all_plugins:
-            self.args = self.get_all_plugins_of_type(plugin_type, loader)
+            self.args = self.get_all_plugins_of_type(plugin_type)
+            if self.options.module_path:
+                display.warning('Ignoring "--module-path/-M" option as "--all/-a" only displays builtins')
 
-        # dump plugin metadata as JSON
+        # dump plugin desc/metadata as JSON
         if self.options.json_dump:
             plugin_data = {}
-            for plugin_type in C.DOCUMENTABLE_PLUGINS:
-                plugin_data[plugin_type] = dict()
-                plugin_names = self.get_all_plugins_of_type(plugin_type)
-                for plugin_name in plugin_names:
-                    plugin_info = self.get_plugin_metadata(plugin_type, plugin_name)
-                    if plugin_info is not None:
-                        plugin_data[plugin_type][plugin_name] = plugin_info
+            plugin_names = self.get_all_plugins_of_type(plugin_type)
+            for plugin_name in plugin_names:
+                plugin_info = self.get_plugin_metadata(plugin_type, plugin_name)
+                if plugin_info is not None:
+                    plugin_data[plugin_name] = plugin_info
 
             self.pager(json.dumps(plugin_data, sort_keys=True, indent=4))
 
@@ -573,7 +561,44 @@ class DocCLI(CLI):
             for note in doc['notes']:
                 text.append(textwrap.fill(CLI.tty_ify(note), limit - 6, initial_indent=opt_indent[:-2] + "* ", subsequent_indent=opt_indent))
             text.append('')
+            text.append('')
             del doc['notes']
+
+        if 'seealso' in doc and doc['seealso']:
+            text.append("SEE ALSO:")
+            for item in doc['seealso']:
+                if 'module' in item and 'description' in item:
+                    text.append(textwrap.fill(CLI.tty_ify('Module %s' % item['module']),
+                                limit - 6, initial_indent=opt_indent[:-2] + "* ", subsequent_indent=opt_indent))
+                    text.append(textwrap.fill(CLI.tty_ify(item['description']),
+                                limit - 6, initial_indent=opt_indent, subsequent_indent=opt_indent))
+                    text.append(textwrap.fill(CLI.tty_ify('https://docs.ansible.com/ansible/latest/modules/%s_module.html' % item['module']),
+                                limit - 6, initial_indent=opt_indent + '   ', subsequent_indent=opt_indent))
+                elif 'module' in item:
+                    text.append(textwrap.fill(CLI.tty_ify('Module %s' % item['module']),
+                                limit - 6, initial_indent=opt_indent[:-2] + "* ", subsequent_indent=opt_indent))
+                    text.append(textwrap.fill(CLI.tty_ify('The official documentation on the %s module.' % item['module']),
+                                limit - 6, initial_indent=opt_indent + '   ', subsequent_indent=opt_indent + '   '))
+                    text.append(textwrap.fill(CLI.tty_ify('https://docs.ansible.com/ansible/latest/modules/%s_module.html' % item['module']),
+                                limit - 6, initial_indent=opt_indent + '   ', subsequent_indent=opt_indent))
+                elif 'name' in item and 'link' in item and 'description' in item:
+                    text.append(textwrap.fill(CLI.tty_ify(item['name']),
+                                limit - 6, initial_indent=opt_indent[:-2] + "* ", subsequent_indent=opt_indent))
+                    text.append(textwrap.fill(CLI.tty_ify(item['description']),
+                                limit - 6, initial_indent=opt_indent + '   ', subsequent_indent=opt_indent + '   '))
+                    text.append(textwrap.fill(CLI.tty_ify(item['link']),
+                                limit - 6, initial_indent=opt_indent + '   ', subsequent_indent=opt_indent + '   '))
+                elif 'ref' in item and 'description' in item:
+                    text.append(textwrap.fill(CLI.tty_ify('Ansible documentation [%s]' % item['ref']),
+                                limit - 6, initial_indent=opt_indent[:-2] + "* ", subsequent_indent=opt_indent))
+                    text.append(textwrap.fill(CLI.tty_ify(item['description']),
+                                limit - 6, initial_indent=opt_indent + '   ', subsequent_indent=opt_indent + '   '))
+                    text.append(textwrap.fill(CLI.tty_ify('https://docs.ansible.com/ansible/latest/#stq=%s&stp=1' % item['ref']),
+                                limit - 6, initial_indent=opt_indent + '   ', subsequent_indent=opt_indent + '   '))
+
+            text.append('')
+            text.append('')
+            del doc['seealso']
 
         if 'requirements' in doc and doc['requirements'] is not None and len(doc['requirements']) > 0:
             req = ", ".join(doc.pop('requirements'))
@@ -594,14 +619,16 @@ class DocCLI(CLI):
 
         if 'plainexamples' in doc and doc['plainexamples'] is not None:
             text.append("EXAMPLES:")
+            text.append('')
             if isinstance(doc['plainexamples'], string_types):
                 text.append(doc.pop('plainexamples').strip())
             else:
                 text.append(yaml.dump(doc.pop('plainexamples'), indent=2, default_flow_style=False))
             text.append('')
+            text.append('')
 
         if 'returndocs' in doc and doc['returndocs'] is not None:
-            text.append("RETURN VALUES:\n")
+            text.append("RETURN VALUES:")
             if isinstance(doc['returndocs'], string_types):
                 text.append(doc.pop('returndocs'))
             else:

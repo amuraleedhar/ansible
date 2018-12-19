@@ -168,9 +168,9 @@ If you want to run under Python 3 instead of Python 2 you may want to change tha
 
 .. code-block:: shell
 
-    $ virtualenv ansible
+    $ virtualenv -p python3 ansible
     $ source ./ansible/bin/activate
-    $ pip3 install ansible
+    $ pip install ansible
 
 If you need to use any libraries which are not available via pip (for instance, SELinux Python
 bindings on systems such as Red Hat Enterprise Linux or Fedora that have SELinux enabled) then you
@@ -601,10 +601,10 @@ In other cases there are technical issues, for example, for python wheels, our d
 How do I get the original ansible_host when I delegate a task?
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-As the documentation states, connection variables are taken from the ``delegate_to`` host so ``ansible_host`` is overritten,
-but you can still access the orignal via ``hostvars``::
+As the documentation states, connection variables are taken from the ``delegate_to`` host so ``ansible_host`` is overwritten,
+but you can still access the original via ``hostvars``::
 
-   oringal_host: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
+   original_host: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
 
 This works for all overriden connection variables, like ``ansible_user``, ``ansible_port``, etc.
 
