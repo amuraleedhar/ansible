@@ -38,23 +38,28 @@ options:
     description:
     - Allows micro-segmentation.
     - The APIC defaults to C(encap) when unset during creation.
+    type: str
     choices: [ encap, useg ]
   ap:
     description:
     - Name of an existing application network profile, that will contain the EPGs.
+    type: str
     aliases: [ app_profile, app_profile_name ]
   deploy_immediacy:
     description:
     - Determines when the policy is pushed to hardware Policy CAM.
     - The APIC defaults to C(lazy) when unset during creation.
+    type: str
     choices: [ immediate, lazy ]
   domain:
     description:
     - Name of the physical or virtual domain being associated with the EPG.
+    type: str
     aliases: [ domain_name, domain_profile ]
   domain_type:
     description:
     - Specify whether the Domain is a physical (phys), a virtual (vmm) or an L2 external domain association (l2dom).
+    type: str
     choices: [ l2dom, phys, vmm ]
     aliases: [ type ]
   encap:
@@ -67,10 +72,12 @@ options:
     description:
     - The ecapsulataion method to be used.
     - The APIC defaults to C(auto) when unset during creation.
+    type: str
     choices: [ auto, vlan, vxlan ]
   epg:
     description:
     - Name of the end point group.
+    type: str
     aliases: [ epg_name, name ]
   netflow:
     description:
@@ -86,22 +93,26 @@ options:
     description:
     - Determines when the policies should be resolved and available.
     - The APIC defaults to C(lazy) when unset during creation.
+    type: str
     choices: [ immediate, lazy, pre-provision ]
   state:
     description:
     - Use C(present) or C(absent) for adding or removing.
     - Use C(query) for listing an object or multiple objects.
+    type: str
     choices: [ absent, present, query ]
     default: present
   tenant:
     description:
     - Name of an existing tenant.
+    type: str
     aliases: [ tenant_name ]
   vm_provider:
     description:
     - The VM platform for VMM Domains.
     - Support for Kubernetes was added in ACI v3.0.
     - Support for CloudFoundry, OpenShift and Red Hat was added in ACI v3.1.
+    type: str
     choices: [ cloudfoundry, kubernetes, microsoft, openshift, openstack, redhat, vmware ]
 extends_documentation_fragment: aci
 '''
@@ -189,7 +200,7 @@ error:
 raw:
   description: The raw output returned by the APIC REST API (xml or json)
   returned: parse error
-  type: string
+  type: str
   sample: '<?xml version="1.0" encoding="UTF-8"?><imdata totalCount="1"><error code="122" text="unknown managed object class foo"/></imdata>'
 sent:
   description: The actual/minimal configuration pushed to the APIC
@@ -238,17 +249,17 @@ proposed:
 filter_string:
   description: The filter string used for the request
   returned: failure or debug
-  type: string
+  type: str
   sample: ?rsp-prop-include=config-only
 method:
   description: The HTTP method used for the request to the APIC
   returned: failure or debug
-  type: string
+  type: str
   sample: POST
 response:
   description: The HTTP response from the APIC
   returned: failure or debug
-  type: string
+  type: str
   sample: OK (30 bytes)
 status:
   description: The HTTP status from the APIC
@@ -258,7 +269,7 @@ status:
 url:
   description: The HTTP url used for the request to the APIC
   returned: failure or debug
-  type: string
+  type: str
   sample: https://10.11.12.13/api/mo/uni/tn-production.json
 '''
 

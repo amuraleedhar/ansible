@@ -107,7 +107,7 @@ state:
         If 'compress', then the file source file is in the compressed state.
         If 'archive', then the source file or paths are currently archived.
         If 'incomplete', then an archive was created, but not all source paths were found.
-    type: string
+    type: str
     returned: always
 missing:
     description: Any files that were missing from the source.
@@ -119,7 +119,7 @@ archived:
     returned: success
 arcroot:
     description: The archive root.
-    type: string
+    type: str
     returned: always
 expanded_paths:
     description: The list of matching paths from paths argument.
@@ -261,8 +261,13 @@ def main():
             arcroot += os.sep
 
         # Don't allow archives to be created anywhere within paths to be removed
-        if remove and os.path.isdir(path) and dest.startswith(path):
-            module.fail_json(path=', '.join(paths), msg='Error, created archive can not be contained in source paths when remove=True')
+        if remove and os.path.isdir(path):
+            path_dir = path
+            if path[-1] != '/':
+                path_dir += '/'
+
+            if dest.startswith(path_dir):
+                module.fail_json(path=', '.join(paths), msg='Error, created archive can not be contained in source paths when remove=True')
 
         if os.path.lexists(path) and path not in expanded_exclude_paths:
             archive_paths.append(path)

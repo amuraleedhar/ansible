@@ -148,6 +148,9 @@ notes:
   - The dependency on httplib2 was removed in Ansible 2.1.
   - The module returns all the HTTP headers in lower-case.
   - For Windows targets, use the M(win_uri) module instead.
+seealso:
+- module: get_url
+- module: win_uri
 author:
 - Romeo Theriault (@romeotheriault)
 '''
@@ -242,7 +245,7 @@ elapsed:
 msg:
   description: The HTTP message from the request
   returned: always
-  type: string
+  type: str
   sample: OK (unknown bytes)
 redirected:
   description: Whether the request was redirected
@@ -257,7 +260,7 @@ status:
 url:
   description: The actual URL used for the request
   returned: always
-  type: string
+  type: str
   sample: https://www.ansible.com/
 '''
 
@@ -585,7 +588,7 @@ def main():
             try:
                 js = json.loads(u_content)
                 uresp['json'] = js
-            except:
+            except Exception:
                 if PY2:
                     sys.exc_clear()  # Avoid false positive traceback in fail_json() on Python 2
     else:

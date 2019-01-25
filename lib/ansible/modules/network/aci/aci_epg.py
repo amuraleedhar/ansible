@@ -32,39 +32,47 @@ options:
   tenant:
     description:
     - Name of an existing tenant.
+    type: str
     aliases: [ tenant_name ]
   ap:
     description:
     - Name of an existing application network profile, that will contain the EPGs.
+    type: str
     required: yes
     aliases: [ app_profile, app_profile_name ]
   epg:
     description:
     - Name of the end point group.
+    type: str
     required: yes
     aliases: [ epg_name, name ]
   bd:
     description:
     - Name of the bridge domain being associated with the EPG.
+    type: str
     aliases: [ bd_name, bridge_domain ]
   priority:
     description:
     - The QoS class.
     - The APIC defaults to C(unspecified) when unset during creation.
+    type: str
     choices: [ level1, level2, level3, unspecified ]
   intra_epg_isolation:
     description:
     - The Intra EPG Isolation.
     - The APIC defaults to C(unenforced) when unset during creation.
+    type: str
     choices: [ enforced, unenforced ]
   description:
     description:
     - Description for the EPG.
+    type: str
     aliases: [ descr ]
   fwd_control:
     description:
     - The forwarding control used by the EPG.
     - The APIC defaults to C(none) when unset during creation.
+    type: str
     choices: [ none, proxy-arp ]
   preferred_group:
     description:
@@ -77,6 +85,7 @@ options:
     description:
     - Use C(present) or C(absent) for adding or removing.
     - Use C(query) for listing an object or multiple objects.
+    type: str
     choices: [ absent, present, query ]
     default: present
 extends_documentation_fragment: aci
@@ -204,7 +213,7 @@ error:
 raw:
   description: The raw output returned by the APIC REST API (xml or json)
   returned: parse error
-  type: string
+  type: str
   sample: '<?xml version="1.0" encoding="UTF-8"?><imdata totalCount="1"><error code="122" text="unknown managed object class foo"/></imdata>'
 sent:
   description: The actual/minimal configuration pushed to the APIC
@@ -253,17 +262,17 @@ proposed:
 filter_string:
   description: The filter string used for the request
   returned: failure or debug
-  type: string
+  type: str
   sample: ?rsp-prop-include=config-only
 method:
   description: The HTTP method used for the request to the APIC
   returned: failure or debug
-  type: string
+  type: str
   sample: POST
 response:
   description: The HTTP response from the APIC
   returned: failure or debug
-  type: string
+  type: str
   sample: OK (30 bytes)
 status:
   description: The HTTP status from the APIC
@@ -273,7 +282,7 @@ status:
 url:
   description: The HTTP url used for the request to the APIC
   returned: failure or debug
-  type: string
+  type: str
   sample: https://10.11.12.13/api/mo/uni/tn-production.json
 '''
 

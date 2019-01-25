@@ -190,6 +190,13 @@ options:
     default: 0
     type: int
     version_added: "2.8"
+  install_weak_deps:
+    description:
+      - Will also install all packages linked by a weak dependency relation.
+      - "NOTE: This feature requires yum >= 4 (RHEL/CentOS 8+)"
+    type: bool
+    default: "yes"
+    version_added: "2.8"
 notes:
   - When used with a `loop:` each package will be processed individually,
     it is much more efficient to pass the list directly to the `name` option.
@@ -853,7 +860,7 @@ class YumModule(YumDnf):
             downgrade_candidate = False
 
             # check if pkgspec is installed (if possible for idempotence)
-            if spec.endswith('.rpm'):
+            if spec.endswith('.rpm') or '://' in spec:
                 if '://' not in spec and not os.path.exists(spec):
                     res['msg'] += "No RPM file matching '%s' found on system" % spec
                     res['results'].append("No RPM file matching '%s' found on system" % spec)
@@ -863,6 +870,12 @@ class YumModule(YumDnf):
                 if '://' in spec:
                     with self.set_env_proxy():
                         package = fetch_file(self.module, spec)
+                        if not package.endswith('.rpm'):
+                            # yum requires a local file to have the extension of .rpm and we
+                            # can not guarantee that from an URL (redirects, proxies, etc)
+                            new_package_path = '%s.rpm' % package
+                            os.rename(package, new_package_path)
+                            package = new_package_path
                 else:
                     package = spec
 

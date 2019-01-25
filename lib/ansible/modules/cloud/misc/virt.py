@@ -122,7 +122,7 @@ list_vms:
 # for status command
 status:
     description: The status of the VM, among running, crashed, paused and shutdown
-    type: string
+    type: str
     sample: "success"
     returned: success
 '''
@@ -354,7 +354,7 @@ class Virt(object):
                         results.append(x.name())
                 else:
                     results.append(x.name())
-            except:
+            except Exception:
                 pass
         return results
 

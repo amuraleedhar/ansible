@@ -252,12 +252,12 @@ RETURN = '''
 plugin:
     description: plugin name
     returned: success
-    type: string
+    type: str
     sample: build-pipeline-plugin
 state:
     description: state of the target, after execution
     returned: success
-    type: string
+    type: str
     sample: "present"
 '''
 
@@ -387,7 +387,7 @@ class JenkinsPlugin(object):
                 self.params['jenkins_home'],
                 self.params['name']))
 
-        if not self.is_installed and self.params['version'] is None:
+        if not self.is_installed and self.params['version'] in [None, 'latest']:
             if not self.module.check_mode:
                 # Install the plugin (with dependencies)
                 install_script = (

@@ -37,6 +37,7 @@ options:
   aaa_password:
     description:
     - The password of the locally-authenticated user.
+    type: str
   aaa_password_lifetime:
     description:
     - The lifetime of the locally-authenticated user password.
@@ -48,6 +49,7 @@ options:
   aaa_user:
     description:
     - The name of the locally-authenticated user user to add.
+    type: str
     aliases: [ name, user ]
   clear_password_history:
     description:
@@ -56,10 +58,12 @@ options:
   description:
     description:
     - Description for the AAA user.
+    type: str
     aliases: [ descr ]
   email:
     description:
     - The email address of the locally-authenticated user.
+    type: str
   enabled:
     description:
     - The status of the locally-authenticated user account.
@@ -67,6 +71,7 @@ options:
   expiration:
     description:
     - The expiration date of the locally-authenticated user account.
+    type: str
   expires:
     description:
     - Whether to enable an expiration date for the locally-authenticated user account.
@@ -74,16 +79,20 @@ options:
   first_name:
     description:
     - The first name of the locally-authenticated user.
+    type: str
   last_name:
     description:
     - The last name of the locally-authenticated user.
+    type: str
   phone:
     description:
     - The phone number of the locally-authenticated user.
+    type: str
   state:
     description:
     - Use C(present) or C(absent) for adding or removing.
     - Use C(query) for listing an object or multiple objects.
+    type: str
     choices: [ absent, present, query ]
     default: present
 extends_documentation_fragment: aci
@@ -167,7 +176,7 @@ error:
 raw:
   description: The raw output returned by the APIC REST API (xml or json)
   returned: parse error
-  type: string
+  type: str
   sample: '<?xml version="1.0" encoding="UTF-8"?><imdata totalCount="1"><error code="122" text="unknown managed object class foo"/></imdata>'
 sent:
   description: The actual/minimal configuration pushed to the APIC
@@ -216,17 +225,17 @@ proposed:
 filter_string:
   description: The filter string used for the request
   returned: failure or debug
-  type: string
+  type: str
   sample: '?rsp-prop-include=config-only'
 method:
   description: The HTTP method used for the request to the APIC
   returned: failure or debug
-  type: string
+  type: str
   sample: POST
 response:
   description: The HTTP response from the APIC
   returned: failure or debug
-  type: string
+  type: str
   sample: OK (30 bytes)
 status:
   description: The HTTP status from the APIC
@@ -236,7 +245,7 @@ status:
 url:
   description: The HTTP url used for the request to the APIC
   returned: failure or debug
-  type: string
+  type: str
   sample: https://10.11.12.13/api/mo/uni/tn-production.json
 '''
 

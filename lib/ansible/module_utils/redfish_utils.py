@@ -7,6 +7,7 @@ __metaclass__ = type
 import json
 import re
 from ansible.module_utils.urls import open_url
+from ansible.module_utils._text import to_text
 from ansible.module_utils.six.moves.urllib.error import URLError, HTTPError
 
 HEADERS = {'content-type': 'application/json'}
@@ -35,8 +36,9 @@ class RedfishUtils(object):
         except URLError as e:
             return {'ret': False, 'msg': "URL Error: %s" % e.reason}
         # Almost all errors should be caught above, but just in case
-        except:
-            return {'ret': False, 'msg': "Unknown error"}
+        except Exception as e:
+            return {'ret': False,
+                    'msg': 'Failed GET operation against Redfish API server: %s' % to_text(e)}
         return {'ret': True, 'data': data}
 
     def post_request(self, uri, pyld, hdrs):
@@ -53,8 +55,9 @@ class RedfishUtils(object):
         except URLError as e:
             return {'ret': False, 'msg': "URL Error: %s" % e.reason}
         # Almost all errors should be caught above, but just in case
-        except:
-            return {'ret': False, 'msg': "Unknown error"}
+        except Exception as e:
+            return {'ret': False,
+                    'msg': 'Failed POST operation against Redfish API server: %s' % to_text(e)}
         return {'ret': True, 'resp': resp}
 
     def patch_request(self, uri, pyld, hdrs):
@@ -71,8 +74,9 @@ class RedfishUtils(object):
         except URLError as e:
             return {'ret': False, 'msg': "URL Error: %s" % e.reason}
         # Almost all errors should be caught above, but just in case
-        except:
-            return {'ret': False, 'msg': "Unknown error"}
+        except Exception as e:
+            return {'ret': False,
+                    'msg': 'Failed PATCH operation against Redfish API server: %s' % to_text(e)}
         return {'ret': True, 'resp': resp}
 
     def delete_request(self, uri, pyld, hdrs):
@@ -89,8 +93,9 @@ class RedfishUtils(object):
         except URLError as e:
             return {'ret': False, 'msg': "URL Error: %s" % e.reason}
         # Almost all errors should be caught above, but just in case
-        except:
-            return {'ret': False, 'msg': "Unknown error"}
+        except Exception as e:
+            return {'ret': False,
+                    'msg': 'Failed DELETE operation against Redfish API server: %s' % to_text(e)}
         return {'ret': True, 'resp': resp}
 
     def _init_session(self):
@@ -833,7 +838,7 @@ class RedfishUtils(object):
         result["entries"] = cpu_results
         return result
 
-    def get_nic_inventory(self):
+    def get_nic_inventory(self, resource_type):
         result = {}
         nic_list = []
         nic_results = []
@@ -843,8 +848,13 @@ class RedfishUtils(object):
                       'NameServers', 'PermanentMACAddress', 'SpeedMbps', 'MTUSize',
                       'AutoNeg', 'Status']
 
-        # Search for 'key' entry and extract URI from it
-        response = self.get_request(self.root_uri + self.systems_uri)
+        #  Given resource_type, use the proper URI
+        if resource_type == 'Systems':
+            resource_uri = self.systems_uri
+        elif resource_type == 'Manager':
+            resource_uri = self.manager_uri
+
+        response = self.get_request(self.root_uri + resource_uri)
         if response['ret'] is False:
             return response
         result['ret'] = True

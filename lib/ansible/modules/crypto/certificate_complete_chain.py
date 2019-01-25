@@ -105,7 +105,7 @@ root:
     description:
         - "The root certificate in PEM format."
     returned: success
-    type: string
+    type: str
 chain:
     description:
         - "The chain added to the given input chain. Includes the root certificate."
@@ -230,6 +230,7 @@ def load_PEM_list(module, path, fail_on_error=True):
             module.fail_json(msg=msg)
         else:
             module.warn(msg)
+            return []
 
 
 class CertificateSet(object):

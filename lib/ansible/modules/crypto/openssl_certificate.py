@@ -391,7 +391,7 @@ RETURN = '''
 filename:
     description: Path to the generated Certificate
     returned: changed or success
-    type: string
+    type: str
     sample: /etc/ssl/crt/www.ansible.com.crt
 '''
 
@@ -1041,7 +1041,7 @@ def main():
     if module.params['provider'] != 'assertonly' and module.params['csr_path'] is None:
         module.fail_json(msg='csr_path is required when provider is not assertonly')
 
-    base_dir = os.path.dirname(module.params['path'])
+    base_dir = os.path.dirname(module.params['path']) or '.'
     if not os.path.isdir(base_dir):
         module.fail_json(
             name=base_dir,

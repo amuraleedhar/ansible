@@ -55,6 +55,8 @@ options:
     type: str
 notes:
     - For Windows targets, use the M(win_reboot) module instead.
+seealso:
+- module: win_reboot
 author:
     - Matt Davis (@nitzmahone)
     - Sam Doran (@samdoran)
@@ -73,7 +75,7 @@ RETURN = r'''
 rebooted:
   description: true if the machine was rebooted
   returned: always
-  type: boolean
+  type: bool
   sample: true
 elapsed:
   description: The number of seconds that elapsed waiting for the system to be rebooted.
