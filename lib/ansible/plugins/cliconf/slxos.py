@@ -19,6 +19,16 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+DOCUMENTATION = """
+---
+cliconf: slxos
+short_description: Use slxos cliconf to run command on Extreme SLX-OS platform
+description:
+  - This slxos plugin provides low level abstraction apis for
+    sending and receiving CLI commands from Extreme SLX-OS network devices.
+version_added: "2.6"
+"""
+
 import re
 import json
 
@@ -91,8 +101,5 @@ class Cliconf(CliconfBase):
         return self.send_command(command=command, prompt=prompt, answer=answer, sendonly=sendonly, check_all=check_all)
 
     def get_capabilities(self):
-        result = {}
-        result['rpc'] = self.get_base_rpc()
-        result['network_api'] = 'cliconf'
-        result['device_info'] = self.get_device_info()
+        result = super(Cliconf, self).get_capabilities()
         return json.dumps(result)

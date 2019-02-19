@@ -326,7 +326,7 @@ def is_different(module, response):
 # Remove unnecessary properties from the response.
 # This is for doing comparisons with Ansible's current parameters.
 def response_to_hash(module, response):
-    return {u'name': response.get(u'name'), u'type': response.get(u'type'), u'ttl': response.get(u'ttl'), u'rrdatas': response.get(u'target')}
+    return {u'name': response.get(u'name'), u'type': response.get(u'type'), u'ttl': response.get(u'ttl'), u'rrdatas': response.get(u'rrdatas')}
 
 
 def updated_record(module):
@@ -376,7 +376,7 @@ def prefetch_soa_resource(module):
 
     result = fetch_wrapped_resource(resource, 'dns#resourceRecordSet', 'dns#resourceRecordSetsListResponse', 'rrsets')
     if not result:
-        raise ValueError("Google DNS Managed Zone %s not found" % module.params['managed_zone']['name'])
+        raise ValueError("Google DNS Managed Zone %s not found" % replace_resource_dict(module.params['managed_zone'], 'name'))
     return result
 
 

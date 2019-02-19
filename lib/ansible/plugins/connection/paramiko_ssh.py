@@ -51,7 +51,9 @@ DOCUMENTATION = """
         vars:
             - name: ansible_password
             - name: ansible_ssh_pass
+            - name: ansible_ssh_password
             - name: ansible_paramiko_pass
+            - name: ansible_paramiko_password
               version_added: '2.5'
       host_key_auto_add:
         description: 'TODO: write it'
@@ -168,13 +170,14 @@ SETTINGS_REGEX = re.compile(r'(\w+)(?:\s*=\s*|\s+)(.+)')
 
 # prevent paramiko warning noise -- see http://stackoverflow.com/questions/3920502/
 HAVE_PARAMIKO = False
+PARAMIKO_IMP_ERR = None
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     try:
         import paramiko
         HAVE_PARAMIKO = True
-    except ImportError:
-        pass
+    except (ImportError, AttributeError) as err:  # paramiko and gssapi are incompatible and raise AttributeError not ImportError
+        PARAMIKO_IMP_ERR = err
 
 
 class MyAddPolicy(object):
@@ -305,7 +308,7 @@ class Connection(ConnectionBase):
         ''' activates the connection object '''
 
         if not HAVE_PARAMIKO:
-            raise AnsibleError("paramiko is not installed")
+            raise AnsibleError("paramiko is not installed: %s" % to_native(PARAMIKO_IMP_ERR))
 
         port = self._play_context.port or 22
         display.vvv("ESTABLISH PARAMIKO SSH CONNECTION FOR USER: %s on PORT %s TO %s" % (self._play_context.remote_user, port, self._play_context.remote_addr),
@@ -412,7 +415,7 @@ class Connection(ConnectionBase):
 
         try:
             chan.exec_command(cmd)
-            if self._play_context.prompt:
+            if self.become and self.become.expect_prompt():
                 passprompt = False
                 become_sucess = False
                 while not (become_sucess or passprompt):
@@ -431,10 +434,10 @@ class Connection(ConnectionBase):
                     # need to check every line because we might get lectured
                     # and we might get the middle of a line in a chunk
                     for l in become_output.splitlines(True):
-                        if self.check_become_success(l):
+                        if self.become.check_success(l):
                             become_sucess = True
                             break
-                        elif self.check_password_prompt(l):
+                        elif self.become.check_password_prompt(l):
                             passprompt = True
                             break
 

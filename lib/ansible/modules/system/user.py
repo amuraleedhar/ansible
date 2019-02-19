@@ -404,6 +404,7 @@ uid:
 
 import errno
 import grp
+import calendar
 import os
 import re
 import pty
@@ -1150,7 +1151,7 @@ class FreeBsdUser(User):
             if self.expires < time.gmtime(0):
                 cmd.append('0')
             else:
-                cmd.append(time.strftime(self.DATE_FORMAT, self.expires))
+                cmd.append(str(calendar.timegm(self.expires)))
 
         # system cannot be handled currently - should we error if its requested?
         # create the user
@@ -1268,7 +1269,7 @@ class FreeBsdUser(User):
                 # Current expires is negative or we compare year, month, and day only
                 if current_expires <= 0 or current_expire_date[:3] != self.expires[:3]:
                     cmd.append('-e')
-                    cmd.append(time.strftime(self.DATE_FORMAT, self.expires))
+                    cmd.append(str(calendar.timegm(self.expires)))
 
         # modify the user if cmd will do anything
         if cmd_len != len(cmd):
@@ -1909,7 +1910,7 @@ class SunOS(User):
                                 fields[5] = str(int(warnweeks) * 7)
                             line = ':'.join(fields)
                             lines.append('%s\n' % line)
-                    with open(self.SHADOWFILE, 'w+'):
+                    with open(self.SHADOWFILE, 'w+') as f:
                         f.writelines(lines)
                     rc = 0
                 except Exception as err:
@@ -1928,7 +1929,7 @@ class SunOS(User):
         with open(self.USER_ATTR, 'r') as file_handler:
             for line in file_handler:
                 lines = line.strip().split('::::')
-                if lines[0] == self.user:
+                if lines[0] == self.name:
                     tmp = dict(x.split('=') for x in lines[1].split(';'))
                     info[0] = tmp.get('profiles', '')
                     info[1] = tmp.get('auths', '')
@@ -2597,7 +2598,7 @@ def main():
         argument_spec=dict(
             state=dict(type='str', default='present', choices=['absent', 'present']),
             name=dict(type='str', required=True, aliases=['user']),
-            uid=dict(type='str'),
+            uid=dict(type='int'),
             non_unique=dict(type='bool', default=False),
             group=dict(type='str'),
             groups=dict(type='list'),

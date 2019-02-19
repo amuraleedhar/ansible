@@ -54,6 +54,12 @@ options:
             - Status of the action.
         choices: ['enabled', 'disabled']
         default: 'enabled'
+    pause_in_maintenance:
+        description:
+            - Whether to pause escalation during maintenance periods or not.
+            - Can be used when I(event_source=trigger).
+        type: 'bool'
+        default: true
     esc_period:
         description:
             - Default operation step duration. Must be greater than 60 seconds. Accepts seconds, time unit with suffix and user macro.
@@ -112,6 +118,9 @@ options:
                       are C(item in not supported state), C(item in normal state),
                       C(LLD rule in not supported state),
                       C(LLD rule in normal state), C(trigger in unknown state), C(trigger in normal state).
+                    - When I(type) is set to C(trigger_severity), the choices
+                      are (case-insensitive) C(not classified), C(information), C(warning), C(average), C(high), C(disaster)
+                      irrespective of user-visible names being changed in Zabbix. Defaults to C(not classified) if omitted.
                     - Besides the above options, this is usualy either the name
                       of the object or a string to compare with.
             operator:
@@ -166,11 +175,11 @@ options:
             - Works only with >= Zabbix 3.2
     acknowledge_default_message:
         description:
-            - Acknowledge operation message text.
+            - Update operation (known as "Acknowledge operation" before Zabbix 4.0) message text.
             - Works only with >= Zabbix 3.4
     acknowledge_default_subject:
         description:
-            - Acknowledge operation message subject.
+            - Update operation (known as "Acknowledge operation" before Zabbix 4.0) message subject.
             - Works only with >= Zabbix 3.4
     operations:
         type: list
@@ -214,7 +223,7 @@ options:
             send_to_users:
                 type: list
                 description:
-                    - Users to send messages to.
+                    - Users (usernames or aliases) to send messages to.
             message:
                 description:
                     - Operation message text.
@@ -758,7 +767,8 @@ class Action(object):
         Returns:
             dict: dictionary of specified parameters
         """
-        return {
+
+        _params = {
             'name': kwargs['name'],
             'eventsource': to_numeric_value([
                 'trigger',
@@ -780,6 +790,12 @@ class Action(object):
                 'enabled',
                 'disabled'], kwargs['status'])
         }
+        if float(self._zapi.api_version().rsplit('.', 1)[0]) >= 4.0:
+            _params['pause_suppressed'] = '1' if kwargs['pause_in_maintenance'] else '0'
+        else:
+            _params['maintenance_mode'] = '1' if kwargs['pause_in_maintenance'] else '0'
+
+        return _params
 
     def check_difference(self, **kwargs):
         """Check difference between action and user specified parameters.
@@ -1436,7 +1452,7 @@ class Filter(object):
         except Exception as e:
             self._module.fail_json(
                 msg="""Unsupported value '%s' for specified condition type.
-                       Check out Zabbix API documetation for supported values for
+                       Check out Zabbix API documentation for supported values for
                        condition type '%s' at
                        https://www.zabbix.com/documentation/3.4/manual/api/reference/action/object#action_filter_condition""" % (value, conditiontype)
             )
@@ -1606,6 +1622,7 @@ def main():
             event_source=dict(type='str', required=True, choices=['trigger', 'discovery', 'auto_registration', 'internal']),
             state=dict(type='str', required=False, default='present', choices=['present', 'absent']),
             status=dict(type='str', required=False, default='enabled', choices=['enabled', 'disabled']),
+            pause_in_maintenance=dict(type='bool', required=False, default=True),
             default_message=dict(type='str', required=False, default=None),
             default_subject=dict(type='str', required=False, default=None),
             recovery_default_message=dict(type='str', required=False, default=None),
@@ -1637,6 +1654,7 @@ def main():
     event_source = module.params['event_source']
     state = module.params['state']
     status = module.params['status']
+    pause_in_maintenance = module.params['pause_in_maintenance']
     default_message = module.params['default_message']
     default_subject = module.params['default_subject']
     recovery_default_message = module.params['recovery_default_message']
@@ -1679,6 +1697,7 @@ def main():
                 event_source=event_source,
                 esc_period=esc_period,
                 status=status,
+                pause_in_maintenance=pause_in_maintenance,
                 default_message=default_message,
                 default_subject=default_subject,
                 recovery_default_message=recovery_default_message,
@@ -1708,6 +1727,7 @@ def main():
                 event_source=event_source,
                 esc_period=esc_period,
                 status=status,
+                pause_in_maintenance=pause_in_maintenance,
                 default_message=default_message,
                 default_subject=default_subject,
                 recovery_default_message=recovery_default_message,

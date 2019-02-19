@@ -113,8 +113,14 @@ options:
         it with the loaded configuration.
         C(replace) substitutes each hierarchy level in the loaded configuration
         for the corresponding level.
+        C(update) is similar to the override option. The new configuration completely
+        replaces the existing configuration. The difference comes when the configuration
+        is later committed. This option performs a 'diff' between the new candidate
+        configuration and the existing committed configuration. It then only notifies
+        system processes responsible for the changed portions of the configuration, and
+        only marks the actual configuration changes as 'changed'.
     default: merge
-    choices: ['merge', 'override', 'replace']
+    choices: ['merge', 'override', 'replace', 'update']
     version_added: "2.3"
   confirm_commit:
     description:
@@ -231,6 +237,26 @@ backup_path:
   returned: when backup is yes
   type: str
   sample: /playbooks/ansible/backup/config.2016-07-16@22:28:34
+filename:
+  description: The name of the backup file
+  returned: when backup is yes and filename is not specified in backup options
+  type: str
+  sample: junos01_config.2016-07-16@22:28:34
+shortname:
+  description: The full path to the backup file excluding the timestamp
+  returned: when backup is yes and filename is not specified in backup options
+  type: str
+  sample: /playbooks/ansible/backup/junos01_config
+date:
+  description: The date extracted from the backup file name
+  returned: when backup is yes
+  type: str
+  sample: "2016-07-16"
+time:
+  description: The time extracted from the backup file name
+  returned: when backup is yes
+  type: str
+  sample: "22:28:34"
 """
 import re
 import json

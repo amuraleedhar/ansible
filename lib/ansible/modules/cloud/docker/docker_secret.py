@@ -30,7 +30,6 @@ options:
   data:
     description:
       - The value of the secret. Required when state is C(present).
-    required: false
     type: str
   data_is_b64:
     description:
@@ -38,44 +37,40 @@ options:
         decoded before being used.
       - To use binary C(data), it is better to keep it Base64 encoded and let it
         be decoded by this option.
-    default: false
     type: bool
+    default: no
     version_added: "2.8"
   labels:
     description:
       - "A map of key:value meta data, where both the I(key) and I(value) are expected to be a string."
       - If new meta data is provided, or existing meta data is modified, the secret will be updated by removing it and creating it again.
-    required: false
     type: dict
   force:
     description:
       - Use with state C(present) to always remove and recreate an existing secret.
       - If I(true), an existing secret will be replaced, even if it has not changed.
-    default: false
     type: bool
+    default: no
   name:
     description:
       - The name of the secret.
-    required: true
     type: str
+    required: yes
   state:
     description:
       - Set to C(present), if the secret should exist, and C(absent), if it should not.
-    required: false
+    type: str
     default: present
     choices:
       - absent
       - present
 
 extends_documentation_fragment:
-    - docker
+  - docker
+  - docker.docker_py_2_documentation
 
 requirements:
-  - "docker-py >= 2.1.0"
-  - "Please note that the L(docker-py,https://pypi.org/project/docker-py/) Python
-     module has been superseded by L(docker,https://pypi.org/project/docker/)
-     (see L(here,https://github.com/docker/docker-py/issues/1310) for details).
-     Version 2.1.0 or newer is only available with the C(docker) module."
+  - "docker >= 2.1.0"
   - "Docker API >= 1.25"
 
 author:
@@ -161,10 +156,10 @@ import hashlib
 try:
     from docker.errors import APIError
 except ImportError:
-    # missing docker-py handled in ansible.module_utils.docker_common
+    # missing docker-py handled in ansible.module_utils.docker.common
     pass
 
-from ansible.module_utils.docker_common import AnsibleDockerClient, DockerBaseClass, compare_generic
+from ansible.module_utils.docker.common import AnsibleDockerClient, DockerBaseClass, compare_generic
 from ansible.module_utils._text import to_native, to_bytes
 
 
@@ -267,7 +262,7 @@ class SecretManager(DockerBaseClass):
 def main():
     argument_spec = dict(
         name=dict(type='str', required=True),
-        state=dict(type='str', choices=['absent', 'present'], default='present'),
+        state=dict(type='str', default='present', choices=['absent', 'present']),
         data=dict(type='str', no_log=True),
         data_is_b64=dict(type='bool', default=False),
         labels=dict(type='dict'),

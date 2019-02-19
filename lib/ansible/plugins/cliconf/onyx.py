@@ -19,6 +19,16 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+DOCUMENTATION = """
+---
+cliconf: onyx
+short_description: Use onyx cliconf to run command on Mellanox ONYX platform
+description:
+  - This onyx plugin provides low level abstraction apis for
+    sending and receiving CLI commands from Mellanox ONYX network devices.
+version_added: "2.5"
+"""
+
 import json
 
 from itertools import chain
@@ -49,7 +59,7 @@ class Cliconf(CliconfBase):
         return device_info
 
     @enable_mode
-    def get_config(self, source='running', format='text'):
+    def get_config(self, source='running', format='text', flags=None):
         if source not in ('running',):
             return self.invalid_params("fetching configuration from %s is not supported" % source)
         cmd = 'show running-config'
@@ -64,8 +74,5 @@ class Cliconf(CliconfBase):
         return self.send_command(command=command, prompt=prompt, answer=answer, sendonly=sendonly, check_all=check_all)
 
     def get_capabilities(self):
-        result = {}
-        result['rpc'] = self.get_base_rpc()
-        result['network_api'] = 'cliconf'
-        result['device_info'] = self.get_device_info()
+        result = super(Cliconf, self).get_capabilities()
         return json.dumps(result)

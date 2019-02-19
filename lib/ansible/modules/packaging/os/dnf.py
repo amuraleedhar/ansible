@@ -530,6 +530,9 @@ class DnfModule(YumDnf):
         # Set installroot
         conf.installroot = installroot
 
+        # Load substitutions from the filesystem
+        conf.substitutions.update_from_etc(installroot)
+
         # Handle different DNF versions immutable mutable datatypes and
         # dnf v1/v2/v3
         #
@@ -834,7 +837,7 @@ class DnfModule(YumDnf):
                         if self.allow_downgrade:
                             self.base.package_install(pkg)
                     else:
-                            self.base.package_install(pkg)
+                        self.base.package_install(pkg)
                 except Exception as e:
                     self.module.fail_json(
                         msg="Error occured attempting remote rpm operation: {0}".format(to_native(e)),

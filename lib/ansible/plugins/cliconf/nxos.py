@@ -19,6 +19,17 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+DOCUMENTATION = """
+---
+author: Ansible Networking Team
+cliconf: nxos
+short_description: Use nxos cliconf to run command on Cisco NX-OS platform
+description:
+  - This nxos plugin provides low level abstraction apis for
+    sending and receiving CLI commands from Cicso NX-OS network devices.
+version_added: "2.4"
+"""
+
 import json
 import re
 
@@ -136,7 +147,7 @@ class Cliconf(CliconfBase):
             raise ValueError("fetching configuration from %s is not supported" % source)
 
         cmd = 'show {0} '.format(lookup[source])
-        if format and format is not 'text':
+        if format and format != 'text':
             cmd += '| %s ' % format
 
         if flags:
@@ -244,12 +255,10 @@ class Cliconf(CliconfBase):
         }
 
     def get_capabilities(self):
-        result = {}
-        result['rpc'] = self.get_base_rpc() + ['get_diff', 'run_commands']
-        result['device_info'] = self.get_device_info()
+        result = super(Cliconf, self).get_capabilities()
+        result['rpc'] += ['get_diff', 'run_commands']
         result['device_operations'] = self.get_device_operations()
         result.update(self.get_option_values())
-        result['network_api'] = 'cliconf'
 
         return json.dumps(result)
 
