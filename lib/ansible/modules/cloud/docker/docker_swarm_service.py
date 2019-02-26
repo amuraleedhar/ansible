@@ -12,7 +12,10 @@ ANSIBLE_METADATA = {'status': ['preview'],
 DOCUMENTATION = '''
 ---
 module: docker_swarm_service
-author: "Dario Zanzico (@dariko), Jason Witkowski (@jwitko)"
+author:
+  - "Dario Zanzico (@dariko)"
+  - "Jason Witkowski (@jwitko)"
+  - "Hannes Ljungberg (@hannseman)"
 short_description: docker swarm service
 description:
   - Manages docker services via a swarm manager node.
@@ -331,8 +334,18 @@ options:
   networks:
     description:
       - List of the service networks names.
+      - Prior to API version 1.29, updating and removing networks is not supported.
+        If changes are made the service will then be removed and recreated.
       - Corresponds to the C(--network) option of C(docker service create).
     type: list
+  stop_grace_period:
+    description:
+        - Time to wait before force killing a container.
+        - "Accepts a duration as a string in a format that look like:
+          C(5h34m56s), C(1m30s) etc. The supported units are C(us), C(ms), C(s), C(m) and C(h)."
+        - Corresponds to the C(--stop-grace-period) option of C(docker service create).
+    type: str
+    version_added: "2.8"
   stop_signal:
     description:
       - Override default signal used to stop the container.
@@ -367,6 +380,7 @@ options:
       mode:
         description:
           - What publish mode to use.
+          - Service will be removed and recreated when changed.
           - Requires API version >= 1.32.
         type: str
         choices:
@@ -397,19 +411,25 @@ options:
   restart_policy_delay:
     description:
       - Delay between restarts.
+      - "Accepts a duration as an integer in nanoseconds or as a string in a format that look like:
+        C(5h34m56s), C(1m30s) etc. The supported units are C(us), C(ms), C(s), C(m) and C(h)."
       - Corresponds to the C(--restart-delay) option of C(docker service create).
-    type: int
+    type: raw
   restart_policy_window:
     description:
       - Restart policy evaluation window.
+      - "Accepts a duration as an integer in nanoseconds or as a string in a format that look like:
+        C(5h34m56s), C(1m30s) etc. The supported units are C(us), C(ms), C(s), C(m) and C(h)."
       - Corresponds to the C(--restart-window) option of C(docker service create).
-    type: int
+    type: raw
   update_delay:
     description:
-      - Rolling update delay in nanoseconds.
+      - Rolling update delay.
+      - "Accepts a duration as an integer in nanoseconds or as a string in a format that look like:
+        C(5h34m56s), C(1m30s) etc. The supported units are C(us), C(ms), C(s), C(m) and C(h)."
       - Corresponds to the C(--update-delay) option of C(docker service create).
       - Before Ansible 2.8, the default value for this option was C(10).
-    type: int
+    type: raw
   update_parallelism:
     description:
       - Rolling update parallelism.
@@ -426,10 +446,12 @@ options:
       - pause
   update_monitor:
     description:
-      - Time to monitor updated tasks for failures, in nanoseconds.
+      - Time to monitor updated tasks for failures.
+      - "Accepts a duration as an integer in nanoseconds or as a string in a format that look like:
+        C(5h34m56s), C(1m30s) etc. The supported units are C(us), C(ms), C(s), C(m) and C(h)."
       - Corresponds to the C(--update-monitor) option of C(docker service create).
       - Requires API version >= 1.25.
-    type: int
+    type: raw
   update_max_failure_ratio:
     description:
       - Fraction of tasks that may fail during an update before the failure action is invoked.
@@ -442,6 +464,9 @@ options:
       - Corresponds to the C(--update-order) option of C(docker service create).
       - Requires API version >= 1.29.
     type: str
+    choices:
+        - stop-first
+        - start-first
   user:
     description:
       - Sets the username or UID used for the specified command.
@@ -708,6 +733,23 @@ def get_docker_environment(env, env_files):
     return sorted(env_list)
 
 
+def get_nanoseconds_from_raw_option(name, value):
+    if value is None:
+        return None
+    elif isinstance(value, int):
+        return value
+    elif isinstance(value, string_types):
+        try:
+            return int(value)
+        except ValueError:
+            return convert_duration_to_nanosecond(value)
+    else:
+        raise ValueError(
+            'Invalid type for %s %s (%s). Only string or int allowed.'
+            % (name, value, type(value))
+        )
+
+
 class DockerService(DockerBaseClass):
     def __init__(self):
         super(DockerService, self).__init__()
@@ -740,6 +782,7 @@ class DockerService(DockerBaseClass):
         self.secrets = None
         self.constraints = None
         self.networks = None
+        self.stop_grace_period = None
         self.stop_signal = None
         self.publish = None
         self.placement_preferences = None
@@ -757,6 +800,7 @@ class DockerService(DockerBaseClass):
         self.update_max_failure_ratio = None
         self.update_order = None
         self.working_dir = None
+        self.can_update_networks = None
 
     def get_facts(self):
         return {
@@ -787,6 +831,7 @@ class DockerService(DockerBaseClass):
             'replicas': self.replicas,
             'endpoint_mode': self.endpoint_mode,
             'restart_policy': self.restart_policy,
+            'stop_grace_period': self.stop_grace_period,
             'stop_signal': self.stop_signal,
             'limit_cpu': self.limit_cpu,
             'limit_memory': self.limit_memory,
@@ -805,9 +850,10 @@ class DockerService(DockerBaseClass):
         }
 
     @staticmethod
-    def from_ansible_params(ap, old_service, image_digest):
+    def from_ansible_params(ap, old_service, image_digest, can_update_networks):
         s = DockerService()
         s.image = image_digest
+        s.can_update_networks = can_update_networks
         s.constraints = ap['constraints']
         s.placement_preferences = ap['placement_preferences']
         s.args = ap['args']
@@ -829,12 +875,8 @@ class DockerService(DockerBaseClass):
         s.stop_signal = ap['stop_signal']
         s.restart_policy = ap['restart_policy']
         s.restart_policy_attempts = ap['restart_policy_attempts']
-        s.restart_policy_delay = ap['restart_policy_delay']
-        s.restart_policy_window = ap['restart_policy_window']
-        s.update_delay = ap['update_delay']
         s.update_parallelism = ap['update_parallelism']
         s.update_failure_action = ap['update_failure_action']
-        s.update_monitor = ap['update_monitor']
         s.update_max_failure_ratio = ap['update_max_failure_ratio']
         s.update_order = ap['update_order']
         s.user = ap['user']
@@ -870,6 +912,25 @@ class DockerService(DockerBaseClass):
             )
 
         s.env = get_docker_environment(ap['env'], ap['env_files'])
+
+        s.restart_policy_delay = get_nanoseconds_from_raw_option(
+            'restart_policy_delay',
+            ap['restart_policy_delay']
+        )
+        s.restart_policy_window = get_nanoseconds_from_raw_option(
+            'restart_policy_window',
+            ap['restart_policy_window']
+        )
+        if ap['stop_grace_period'] is not None:
+            s.stop_grace_period = convert_duration_to_nanosecond(ap['stop_grace_period'])
+        s.update_delay = get_nanoseconds_from_raw_option(
+            'update_delay',
+            ap['update_delay']
+        )
+        s.update_monitor = get_nanoseconds_from_raw_option(
+            'update_monitor',
+            ap['update_monitor']
+        )
 
         if ap['force_update']:
             s.force_update = int(str(time.time()).replace('.', ''))
@@ -937,6 +998,7 @@ class DockerService(DockerBaseClass):
                 service_s['gid'] = param_m['gid']
                 service_s['mode'] = param_m['mode']
                 s.secrets.append(service_s)
+
         return s
 
     def compare(self, os):
@@ -962,7 +1024,7 @@ class DockerService(DockerBaseClass):
             differences.add('secrets', parameter=self.secrets, active=os.secrets)
         if self.networks is not None and self.networks != (os.networks or []):
             differences.add('networks', parameter=self.networks, active=os.networks)
-            needs_rebuild = True
+            needs_rebuild = not self.can_update_networks
         if self.replicas != os.replicas:
             differences.add('replicas', parameter=self.replicas, active=os.replicas)
         if self.command is not None and self.command != (os.command or []):
@@ -989,6 +1051,8 @@ class DockerService(DockerBaseClass):
             differences.add('container_labels', parameter=self.container_labels, active=os.container_labels)
         if self.stop_signal is not None and self.stop_signal != os.stop_signal:
             differences.add('stop_signal', parameter=self.stop_signal, active=os.stop_signal)
+        if self.stop_grace_period is not None and self.stop_grace_period != os.stop_grace_period:
+            differences.add('stop_grace_period', parameter=self.stop_grace_period, active=os.stop_grace_period)
         if self.has_publish_changed(os.publish):
             differences.add('publish', parameter=self.publish, active=os.publish)
         if self.restart_policy is not None and self.restart_policy != os.restart_policy:
@@ -1150,6 +1214,8 @@ class DockerService(DockerBaseClass):
             container_spec_args['healthcheck'] = types.Healthcheck(**self.healthcheck)
         if self.hostname is not None:
             container_spec_args['hostname'] = self.hostname
+        if self.stop_grace_period is not None:
+            container_spec_args['stop_grace_period'] = self.stop_grace_period
         if self.stop_signal is not None:
             container_spec_args['stop_signal'] = self.stop_signal
         if self.tty is not None:
@@ -1337,6 +1403,7 @@ class DockerServiceManager(object):
         ds.command = task_template_data['ContainerSpec'].get('Command')
         ds.args = task_template_data['ContainerSpec'].get('Args')
         ds.groups = task_template_data['ContainerSpec'].get('Groups')
+        ds.stop_grace_period = task_template_data['ContainerSpec'].get('StopGracePeriod')
         ds.stop_signal = task_template_data['ContainerSpec'].get('StopSignal')
         ds.working_dir = task_template_data['ContainerSpec'].get('Dir')
 
@@ -1520,6 +1587,10 @@ class DockerServiceManager(object):
         digest = distribution_data['Descriptor']['digest']
         return '%s@%s' % (name, digest)
 
+    def can_update_networks(self):
+        # Before Docker API 1.29 adding/removing networks was not supported
+        return self.client.docker_api_version >= LooseVersion('1.29')
+
     def run(self):
         self.diff_tracker = DifferenceTracker()
         module = self.client.module
@@ -1532,21 +1603,29 @@ class DockerServiceManager(object):
             )
         except DockerException as e:
             self.client.fail(
-                "Error looking for an image named %s: %s" % (image, e))
+                'Error looking for an image named %s: %s'
+                % (image, e)
+            )
+
         try:
             current_service = self.get_service(module.params['name'])
         except Exception as e:
             self.client.fail(
-                "Error looking for service named %s: %s" % (module.params['name'], e))
+                'Error looking for service named %s: %s'
+                % (module.params['name'], e)
+            )
         try:
+            can_update_networks = self.can_update_networks()
             new_service = DockerService.from_ansible_params(
                 module.params,
                 current_service,
-                image_digest
+                image_digest,
+                can_update_networks
             )
         except Exception as e:
-            self.client.fail(
-                "Error parsing module parameters: %s" % e)
+            return self.client.fail(
+                'Error parsing module parameters: %s' % e
+            )
 
         changed = False
         msg = 'noop'
@@ -1698,6 +1777,7 @@ def main():
         mode=dict(type='str', default='replicated'),
         replicas=dict(type='int', default=-1),
         endpoint_mode=dict(type='str', choices=['vip', 'dnsrr']),
+        stop_grace_period=dict(type='str'),
         stop_signal=dict(type='str'),
         limit_cpu=dict(type='float'),
         limit_memory=dict(type='str'),
@@ -1705,15 +1785,15 @@ def main():
         reserve_memory=dict(type='str'),
         resolve_image=dict(type='bool', default=True),
         restart_policy=dict(type='str', choices=['none', 'on-failure', 'any']),
-        restart_policy_delay=dict(type='int'),
+        restart_policy_delay=dict(type='raw'),
         restart_policy_attempts=dict(type='int'),
-        restart_policy_window=dict(type='int'),
-        update_delay=dict(type='int'),
+        restart_policy_window=dict(type='raw'),
+        update_delay=dict(type='raw'),
         update_parallelism=dict(type='int'),
         update_failure_action=dict(type='str', choices=['continue', 'pause']),
-        update_monitor=dict(type='int'),
+        update_monitor=dict(type='raw'),
         update_max_failure_ratio=dict(type='float'),
-        update_order=dict(type='str'),
+        update_order=dict(type='str', choices=['stop-first', 'start-first']),
         user=dict(type='str'),
         working_dir=dict(type='str'),
     )
