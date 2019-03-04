@@ -123,15 +123,19 @@ options:
   labels:
     description:
       - User-defined key/value metadata.
+      - Label operations in this module apply to the docker swarm cluster.
+        Use M(docker_node) module to add/modify/remove swarm node labels.
     type: dict
   signing_ca_cert:
     description:
       - The desired signing CA certificate for all swarm node TLS leaf certificates, in PEM format.
-    type: path
+      - This must not be a path to a certificate, but the contents of the certificate.
+    type: str
   signing_ca_key:
     description:
       - The desired signing CA key for all swarm node TLS leaf certificates, in PEM format.
-    type: path
+      - This must not be a path to a key, but the contents of the key.
+    type: str
   ca_force_rotate:
     description:
       - An integer whose purpose is to force swarm to generate a new signing CA certificate and key,
@@ -159,6 +163,7 @@ requirements:
   - Docker API >= 1.25
 author:
   - Thierry Bouvet (@tbouvet)
+  - Piotr Wojciechowski (@WojciechowskiPiotr)
 '''
 
 EXAMPLES = '''
@@ -229,7 +234,7 @@ actions:
 '''
 
 import json
-from time import sleep
+
 try:
     from docker.errors import APIError
 except ImportError:
@@ -237,10 +242,12 @@ except ImportError:
     pass
 
 from ansible.module_utils.docker.common import (
-    AnsibleDockerClient,
     DockerBaseClass,
     DifferenceTracker,
 )
+
+from ansible.module_utils.docker.swarm import AnsibleDockerSwarmClient
+
 from ansible.module_utils._text import to_native
 
 
@@ -250,7 +257,6 @@ class TaskParameters(DockerBaseClass):
 
         self.advertise_addr = None
         self.listen_addr = None
-        self.force_new_cluster = None
         self.remote_addrs = None
         self.join_token = None
 
@@ -292,6 +298,8 @@ class TaskParameters(DockerBaseClass):
         ca_config = spec.get('CAConfig') or dict()
         if self.node_cert_expiry is None:
             self.node_cert_expiry = ca_config.get('NodeCertExpiry')
+        if self.ca_force_rotate is None:
+            self.ca_force_rotate = ca_config.get('ForceRotate')
 
         dispatcher = spec.get('Dispatcher') or dict()
         if self.dispatcher_heartbeat_period is None:
@@ -349,12 +357,17 @@ class TaskParameters(DockerBaseClass):
 
     def compare_to_active(self, other, differences):
         for k in self.__dict__:
-            if k in ('advertise_addr', 'listen_addr', 'rotate_worker_token', 'rotate_manager_token', 'spec'):
+            if k in ('advertise_addr', 'listen_addr', 'remote_addrs', 'join_token',
+                     'rotate_worker_token', 'rotate_manager_token', 'spec'):
                 continue
             if self.__dict__[k] is None:
                 continue
             if self.__dict__[k] != other.__dict__[k]:
                 differences.add(k, parameter=self.__dict__[k], active=other.__dict__[k])
+        if self.rotate_worker_token:
+            differences.add('rotate_worker_token', parameter=True, active=False)
+        if self.rotate_manager_token:
+            differences.add('rotate_manager_token', parameter=True, active=False)
         return differences
 
 
@@ -384,16 +397,17 @@ class SwarmManager(DockerBaseClass):
             "inspect": self.inspect_swarm
         }
 
+        if self.state == 'inspect':
+            self.client.module.deprecate(
+                "The 'inspect' state is deprecated, please use 'docker_swarm_facts' to inspect swarm cluster",
+                version='2.12')
+
         choice_map.get(self.state)()
 
-    def __isSwarmManager(self):
-        try:
-            data = self.client.inspect_swarm()
-            json_str = json.dumps(data, ensure_ascii=False)
-            self.swarm_info = json.loads(json_str)
-            return True
-        except APIError:
-            return False
+        if self.client.module._diff or self.parameters.debug:
+            diff = dict()
+            diff['before'], diff['after'] = self.differences.get_before_after()
+            self.results['diff'] = diff
 
     def inspect_swarm(self):
         try:
@@ -406,7 +420,7 @@ class SwarmManager(DockerBaseClass):
             return
 
     def init_swarm(self):
-        if self.__isSwarmManager():
+        if not self.force and self.client.check_if_swarm_manager():
             self.__update_swarm()
             return
 
@@ -414,13 +428,16 @@ class SwarmManager(DockerBaseClass):
             try:
                 self.client.init_swarm(
                     advertise_addr=self.parameters.advertise_addr, listen_addr=self.parameters.listen_addr,
-                    force_new_cluster=self.parameters.force_new_cluster, swarm_spec=self.parameters.spec)
+                    force_new_cluster=self.force, swarm_spec=self.parameters.spec)
             except APIError as exc:
                 self.client.fail("Can not create a new Swarm Cluster: %s" % to_native(exc))
 
-        self.__isSwarmManager()
+        if not self.client.check_if_swarm_manager():
+            if not self.check_mode:
+                self.client.fail("Swarm not created or other error!")
+        self.inspect_swarm()
         self.results['actions'].append("New Swarm cluster created: %s" % (self.swarm_info.get('ID')))
-        self.differences.add('state', parameter='absent', active='present')
+        self.differences.add('state', parameter='present', active='absent')
         self.results['changed'] = True
         self.results['swarm_facts'] = {u'JoinTokens': self.swarm_info.get('JoinTokens')}
 
@@ -450,26 +467,15 @@ class SwarmManager(DockerBaseClass):
         self.results['actions'].append("Swarm cluster updated")
         self.results['changed'] = True
 
-    def __isSwarmNode(self):
-        info = self.client.info()
-        if info:
-            json_str = json.dumps(info, ensure_ascii=False)
-            self.swarm_info = json.loads(json_str)
-            if self.swarm_info['Swarm']['NodeID']:
-                return True
-            if self.swarm_info['Swarm']['LocalNodeState'] in ('active', 'pending', 'locked'):
-                return True
-        return False
-
     def join(self):
-        if self.__isSwarmNode():
+        if self.client.check_if_swarm_node():
             self.results['actions'].append("This node is already part of a swarm.")
             return
         if not self.check_mode:
             try:
                 self.client.join_swarm(
-                    remote_addrs=self.parameters.remote_addrs, join_token=self.parameters.join_token, listen_addr=self.parameters.listen_addr,
-                    advertise_addr=self.parameters.advertise_addr)
+                    remote_addrs=self.parameters.remote_addrs, join_token=self.parameters.join_token,
+                    listen_addr=self.parameters.listen_addr, advertise_addr=self.parameters.advertise_addr)
             except APIError as exc:
                 self.client.fail("Can not join the Swarm Cluster: %s" % to_native(exc))
         self.results['actions'].append("New node is added to swarm cluster")
@@ -477,7 +483,7 @@ class SwarmManager(DockerBaseClass):
         self.results['changed'] = True
 
     def leave(self):
-        if not(self.__isSwarmNode()):
+        if not self.client.check_if_swarm_node():
             self.results['actions'].append("This node is not part of a swarm.")
             return
         if not self.check_mode:
@@ -489,33 +495,16 @@ class SwarmManager(DockerBaseClass):
         self.differences.add('joined', parameter='absent', active='present')
         self.results['changed'] = True
 
-    def __get_node_info(self):
-        try:
-            node_info = self.client.inspect_node(node_id=self.parameters.node_id)
-        except APIError as exc:
-            raise exc
-        json_str = json.dumps(node_info, ensure_ascii=False)
-        node_info = json.loads(json_str)
-        return node_info
-
-    def __check_node_is_down(self):
-        for _x in range(0, 5):
-            node_info = self.__get_node_info()
-            if node_info['Status']['State'] == 'down':
-                return True
-            sleep(5)
-        return False
-
     def remove(self):
-        if not(self.__isSwarmManager()):
+        if not self.client.check_if_swarm_manager():
             self.client.fail("This node is not a manager.")
 
         try:
-            status_down = self.__check_node_is_down()
+            status_down = self.client.check_if_swarm_node_is_down(repeat_check=5)
         except APIError:
             return
 
-        if not(status_down):
+        if not status_down:
             self.client.fail("Can not remove the node. The status node is ready and not down.")
 
         if not self.check_mode:
@@ -546,8 +535,8 @@ def main():
         node_cert_expiry=dict(type='int'),
         name=dict(type='str'),
         labels=dict(type='dict'),
-        signing_ca_cert=dict(type='path'),
-        signing_ca_key=dict(type='path'),
+        signing_ca_cert=dict(type='str'),
+        signing_ca_key=dict(type='str'),
         ca_force_rotate=dict(type='int'),
         autolock_managers=dict(type='bool'),
         node_id=dict(type='str'),
@@ -567,7 +556,7 @@ def main():
         ca_force_rotate=dict(docker_api_version='1.30'),
     )
 
-    client = AnsibleDockerClient(
+    client = AnsibleDockerSwarmClient(
         argument_spec=argument_spec,
         supports_check_mode=True,
         required_if=required_if,

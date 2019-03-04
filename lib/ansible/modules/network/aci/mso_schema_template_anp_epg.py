@@ -28,7 +28,7 @@ options:
     required: yes
   template:
     description:
-    - The name of the template to change.
+    - The name of the template.
     type: str
     required: yes
   anp:
@@ -193,7 +193,7 @@ def main():
         schema=dict(type='str', required=True),
         template=dict(type='str', required=True),
         anp=dict(type='str', required=True),
-        epg=dict(type='str', required=False, aliases=['name']),  # This parameter is not required for querying all objects
+        epg=dict(type='str', aliases=['name']),  # This parameter is not required for querying all objects
         bd=dict(type='dict', options=mso_reference_spec()),
         display_name=dict(type='str'),
         useg_epg=dict(type='bool'),
@@ -285,7 +285,7 @@ def main():
             proxyArp=intersite_multicaste_source,
             # FIXME: Missing functionality
             # uSegAttrs=[],
-            # contractRelationships=[],
+            contractRelationships=[],
             subnets=subnets,
             bdRef=bd_ref,
         )

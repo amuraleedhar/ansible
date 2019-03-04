@@ -162,7 +162,7 @@ def main():
         contract_display_name=dict(type='str'),
         contract_scope=dict(type='str', choices=['application-profile', 'global', 'tenant', 'vrf']),
         contract_filter_type=dict(type='str', choices=['both-way', 'one-way']),
-        filter=dict(type='str', required=False, aliases=['name']),  # This parameter is not required for querying all objects
+        filter=dict(type='str', aliases=['name']),  # This parameter is not required for querying all objects
         filter_template=dict(type='str'),
         filter_schema=dict(type='str'),
         filter_type=dict(type='str', default='both-way', choices=FILTER_KEYS.keys(), aliases=['type']),
@@ -234,7 +234,7 @@ def main():
         contract_idx = contracts.index(contract)
 
         filters = [f['filterRef'] for f in schema_obj['templates'][template_idx]['contracts'][contract_idx][filter_key]]
-        filter_ref = mso.filter_ref(filter_schema_id, filter_template, filter_name)
+        filter_ref = mso.filter_ref(schema_id=filter_schema_id, template=filter_template, filter=filter_name)
         if filter_ref in filters:
             filter_idx = filters.index(filter_ref)
             # FIXME: Changes based on index are DANGEROUS
@@ -289,13 +289,14 @@ def main():
         mso.existing = mso.sent
 
         if contract_idx is None:
-            # COntract does not exist, so we have to create it
-            if contract_display_name is None:
-                contract_display_name = contract
-            if contract_filter_type is None:
-                contract_ftype = 'bothWay'
-            if contract_scope is None:
-                contract_scope = 'context'
+            if not mso.existing:
+                # Contract does not exist, so we have to create it
+                if contract_display_name is None:
+                    contract_display_name = contract
+                if contract_filter_type is None:
+                    contract_ftype = 'bothWay'
+                if contract_scope is None:
+                    contract_scope = 'context'
 
             payload = {
                 'name': contract,
